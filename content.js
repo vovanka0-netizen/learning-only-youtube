@@ -83,14 +83,29 @@ async function fetchCategory(id) {
   return m ? m[1] : null;
 }
 
+// Decisions are applied together once per frame, so the grid reflows once
+// instead of jumping for every single tile.
+const decisions = [];
+let frameRequested = false;
+
 function decide(tile, category) {
-  tile.classList.remove("lo-pending");
-  // Unknown category: show the tile rather than risk an empty page.
-  if (category && !LEARNING.includes(category)) {
-    tile.classList.add("lo-hidden");
-    hidden++;
-  } else {
-    shown++;
+  decisions.push([tile, category]);
+  if (frameRequested) return;
+  frameRequested = true;
+  requestAnimationFrame(applyDecisions);
+}
+
+function applyDecisions() {
+  frameRequested = false;
+  for (const [tile, category] of decisions.splice(0)) {
+    tile.classList.remove("lo-pending");
+    // Unknown category: show the tile rather than risk an empty page.
+    if (category && !LEARNING.includes(category)) {
+      tile.classList.add("lo-hidden");
+      hidden++;
+    } else {
+      shown++;
+    }
   }
   updateCounter();
 }
@@ -127,11 +142,19 @@ function check(tile, id) {
   pump();
 }
 
-function scan() {
+const LINK = 'a[href*="/watch?v="], a[href^="/shorts/"]';
+
+// A full scan re-checks every tile (YouTube reuses tile elements when you
+// navigate). A quick scan only looks at tiles that haven't been seen yet.
+function scan(full) {
   if (!isFilteredPage()) return;
-  document.querySelectorAll('a[href*="/watch?v="], a[href^="/shorts/"]').forEach(a => {
-    const tile = a.closest(TILE_OUTER) || a.closest(TILE_INNER);
-    const id = tile && videoId(a.getAttribute("href"));
+  const selector = full
+    ? `${TILE_OUTER}, ${TILE_INNER}`
+    : `${TILE_OUTER}:not([data-lo-id]), :is(${TILE_INNER}):not([data-lo-id])`;
+  document.querySelectorAll(selector).forEach(el => {
+    const tile = el.closest(TILE_OUTER) || el;
+    const link = tile.querySelector(LINK);
+    const id = link && videoId(link.getAttribute("href"));
     if (id) check(tile, id);
   });
 }
@@ -151,19 +174,20 @@ function updateCounter() {
 // YouTube is a single-page app: it swaps content without reloading,
 // so watch the DOM and rescan when it changes.
 let scheduled = false;
-new MutationObserver(() => {
-  if (scheduled) return;
+new MutationObserver(records => {
+  // Ignore changes made by our own counter.
+  if (scheduled || records.every(r => r.target.id === "lo-counter")) return;
   scheduled = true;
   setTimeout(() => {
     scheduled = false;
-    scan();
-  }, 300);
+    scan(false);
+  }, 200);
 }).observe(document.documentElement, { childList: true, subtree: true });
 
 document.addEventListener("yt-navigate-finish", () => {
   shown = 0;
   hidden = 0;
-  scan();
+  scan(true);
 });
 
-scan();
+scan(true);

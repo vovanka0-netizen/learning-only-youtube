@@ -1,0 +1,18 @@
+{
+  "manifest_version": 3,
+  "name": "Learning Only for YouTube",
+  "version": "0.1",
+  "description": "Hides recommended YouTube videos unless their category is Education, Science & Technology or Howto & Style.",
+  "host_permissions": ["https://www.youtube.com/*"],
+  "content_scripts": [
+    {
+      "matches": ["https://www.youtube.com/*"],
+      "js": ["content.js"],
+      "css": ["styles.css"],
+      "run_at": "document_idle"
+    }
+  ],
+  "browser_specific_settings": {
+    "gecko": { "id": "learning-only-youtube@vovanka0" }
+  }
+}

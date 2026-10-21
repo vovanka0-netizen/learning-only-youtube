@@ -1,0 +1,17 @@
+.lo-pending,
+.lo-hidden {
+  display: none !important;
+}
+
+#lo-counter {
+  position: fixed;
+  left: 16px;
+  bottom: 16px;
+  z-index: 9999;
+  padding: 6px 10px;
+  border-radius: 8px;
+  background: rgba(15, 15, 15, .85);
+  color: #fff;
+  font: 12px/1.4 Roboto, Arial, sans-serif;
+  cursor: pointer;
+}

@@ -17,11 +17,14 @@ const TILE_INNER = [
 
 const CACHE_PREFIX = "learning-only:";
 const FALLBACK_CLIENT_VERSION = "2.20261020.05.00";
-const MAX_PARALLEL = 6;
+// Keep lookups modest so YouTube doesn't mistake them for a bot.
+const MAX_PARALLEL = 4;
+const MAX_LOOKUPS_PER_PAGE = 100;
 
 const memory = new Map();
 const queue = [];
 let running = 0;
+let lookups = 0;
 let shown = 0;
 let hidden = 0;
 let clientVersion;
@@ -137,8 +140,12 @@ function check(tile, id) {
 
   tile.classList.add("lo-pending");
   const waiting = queue.find(q => q.id === id);
-  if (waiting) waiting.tiles.push(tile);
-  else queue.push({ id, tiles: [tile] });
+  if (waiting) return waiting.tiles.push(tile);
+  // Over the limit the tile just stays hidden. This mostly happens on pages
+  // where YouTube keeps loading more because almost everything gets hidden.
+  if (lookups >= MAX_LOOKUPS_PER_PAGE) return;
+  lookups++;
+  queue.push({ id, tiles: [tile] });
   pump();
 }
 
@@ -187,6 +194,7 @@ new MutationObserver(records => {
 document.addEventListener("yt-navigate-finish", () => {
   shown = 0;
   hidden = 0;
+  lookups = 0;
   scan(true);
 });
 
